@@ -6,7 +6,7 @@ exclude = ["crates/testbed/repositories/*"]
 [workspace.package]
 edition = "2021"
 license = "Apache-2.0"
-authors = ["Luc Georges <luc@huggingface.co>"]
+authors = ["4t8dd"]
 
 # [profile.dev]
 # Disabling debug info speeds up builds a bunch,
