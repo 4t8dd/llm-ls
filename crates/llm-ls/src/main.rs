@@ -458,19 +458,19 @@ fn build_url(backend: Backend, model: &str, disable_url_path_completion: bool) -
             }
         }
         Backend::OpenAi { mut url } => {
-            if url.ends_with("/v1/completions") {
+            if url.ends_with("/v1/chat/completions") {
                 url
             } else if url.ends_with("/v1/") {
-                url.push_str("completions");
+                url.push_str("chat/completions");
                 url
             } else if url.ends_with("/v1") {
-                url.push_str("/completions");
+                url.push_str("/chat/completions");
                 url
             } else if url.ends_with('/') {
-                url.push_str("v1/completions");
+                url.push_str("v1/chat/completions");
                 url
             } else {
-                url.push_str("/v1/completions");
+                url.push_str("/v1/chat/completions");
                 url
             }
         }

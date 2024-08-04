@@ -5,6 +5,7 @@ use tokio::sync::oneshot::error::RecvError;
 
 use crate::msg::ResponseError;
 
+#[warn(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProtocolError(pub(crate) String);
 

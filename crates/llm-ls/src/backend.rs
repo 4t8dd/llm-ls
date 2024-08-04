@@ -129,22 +129,51 @@ fn parse_ollama_text(text: &str) -> Result<Vec<Generation>> {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct OpenAIGenerationChoice {
-    text: String,
+#[derive(Debug, Deserialize, Serialize)]
+struct OpenAIResponse {
+    choices: Vec<Choice>,
 }
 
-impl From<OpenAIGenerationChoice> for Generation {
-    fn from(value: OpenAIGenerationChoice) -> Self {
+#[derive(Debug, Deserialize, Serialize)]
+struct Choice {
+    index: u32,
+    finish_reason: String,
+    message: OpenAIMessage,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct OpenAIMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Delta {
+    content: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct OpenAIStreamMessage {
+    delta: Delta,
+    index: u32,
+    finish_reason: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct OpenAIStreamResponse {
+    id: String,
+    object: String,
+    model: String,
+    created: u32,
+    choices: Vec<OpenAIStreamMessage>,
+}
+
+impl From<Choice> for Generation {
+    fn from(value: Choice) -> Self {
         Generation {
-            generated_text: value.text,
+            generated_text: value.message.content,
         }
     }
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenAIGeneration {
-    choices: Vec<OpenAIGenerationChoice>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -190,7 +219,7 @@ impl Display for OpenAIError {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum OpenAIAPIResponse {
-    Generation(OpenAIGeneration),
+    Generation(OpenAIResponse),
     Error(OpenAIError),
 }
 
@@ -227,7 +256,19 @@ pub(crate) fn build_body(
             request_body.insert("prompt".to_owned(), Value::String(prompt));
         }
         Backend::Ollama { .. } | Backend::OpenAi { .. } => {
-            request_body.insert("prompt".to_owned(), Value::String(prompt));
+            let mut message = Map::new();
+            message.insert("role".to_owned(), Value::String("user".to_owned()));
+            message.insert("content".to_owned(), Value::String(prompt.to_owned()));
+
+            request_body
+                .entry("messages")
+                .and_modify(|msgs| {
+                    let array = msgs
+                        .as_array_mut()
+                        .expect("Expected an array for 'messages' field");
+                    array.push(Value::Object(message.clone()));
+                })
+                .or_insert_with(|| Value::Array(vec![Value::Object(message)]));
             request_body.insert("model".to_owned(), Value::String(model));
             request_body.insert("stream".to_owned(), Value::Bool(false));
         }
