@@ -39,6 +39,8 @@ pub enum Error {
     Ollama(crate::backend::APIError),
     #[error("openai error: {0}")]
     OpenAI(crate::backend::OpenAIError),
+    #[error("gemini error: {0}")]
+    Gemini(crate::backend::GeminiError),
     #[error("index out of bounds: {0}")]
     OutOfBoundIndexing(usize),
     #[error("line out of bounds: {0} >= {1}")]

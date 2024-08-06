@@ -485,6 +485,22 @@ fn build_url(backend: Backend, model: &str, disable_url_path_completion: bool) -
                 url
             }
         }
+        Backend::Gemini { mut url} => {
+            if url.ends_with("/v1/models") {
+                url.push_str("/");
+                url.push_str(model);
+            } else if url.ends_with("/v1/models/") {
+                url.push_str(model);
+            } else if url.ends_with("/v1/") {
+                url.push_str("models/");
+                url.push_str(model);
+            } else if url.ends_with("/v1") {
+                url.push_str("/models");
+                url.push_str(model);
+            }
+            url.push_str(":generateContent");
+            url
+        }
     }
 }
 

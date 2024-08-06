@@ -223,6 +223,86 @@ enum OpenAIAPIResponse {
     Error(OpenAIError),
 }
 
+#[derive(Debug, Deserialize)]
+pub struct GeminiError {
+    code: u32,
+    message: String,
+    status: String,
+}
+impl Display for GeminiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Gemini API Error: {} (Code: {}, Status: {})", self.message, self.code, self.status)
+    }
+}
+
+
+#[derive(Debug, Deserialize)]
+struct Candidate {
+    content: Content,
+}
+
+#[derive(Debug, Deserialize)]
+struct GeminiResponse {
+    candidates: Vec<Candidate>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Content {
+    parts: Vec<Part>,
+    role: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Part {
+    text: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum GeminiAPIResponse {
+    Generation(GeminiResponse),
+    Error(GeminiError),
+}
+
+impl From<Candidate> for Generation {
+    fn from(value: Candidate) -> Self {
+        let text: String = value.content.parts
+            .into_iter()
+            .map(|part| part.text)
+            .collect::<Vec<String>>()
+            .join("");
+        Generation {
+            generated_text: text,
+        }
+    }
+}
+
+fn build_gemini_headers(api_token: Option<&String>, ide: Ide) -> Result<HeaderMap> {
+    let mut headers = HeaderMap::new();
+    let user_agent = format!("{NAME}/{VERSION}; rust/unknown; ide/{ide:?}");
+    headers.insert(USER_AGENT, HeaderValue::from_str(&user_agent)?);
+
+    if let Some(api_token) = api_token {
+        headers.insert(
+            "x-goog-api-key",
+            HeaderValue::from_str(&format!("{api_token}"))?,
+        );
+    }
+
+    Ok(headers)
+}
+
+fn parse_gemini_text(text: &str) -> Result<Vec<Generation>> {
+    match serde_json::from_str(text)? {
+        GeminiAPIResponse::Generation(result) => {
+            Ok(result.candidates.into_iter().map(|x| x.into()).collect())
+        }
+        GeminiAPIResponse::Error(err) => {
+            Err(Error::Gemini(err))
+        }
+    }
+}
+
 fn build_openai_headers(api_token: Option<&String>, ide: Ide) -> Result<HeaderMap> {
     build_api_headers(api_token, ide)
 }
@@ -254,6 +334,15 @@ pub(crate) fn build_body(
         }
         Backend::LlamaCpp { .. } => {
             request_body.insert("prompt".to_owned(), Value::String(prompt));
+        }
+        Backend::Gemini { .. } => {
+            let content = json!({
+                "role": "user",
+                "parts": [{
+                    "text": prompt
+                }]
+            });
+            request_body.insert("contents".to_owned(), Value::Array(vec![Value::Object(content.as_object().unwrap().clone())]));
         }
         Backend::Ollama { .. } | Backend::OpenAi { .. } => {
             let mut message = Map::new();
@@ -287,6 +376,7 @@ pub(crate) fn build_headers(
         Backend::Ollama { .. } => Ok(build_ollama_headers()),
         Backend::OpenAi { .. } => build_openai_headers(api_token, ide),
         Backend::Tgi { .. } => build_tgi_headers(api_token, ide),
+        Backend::Gemini { .. } => build_gemini_headers(api_token, ide),
     }
 }
 
@@ -297,5 +387,6 @@ pub(crate) fn parse_generations(backend: &Backend, text: &str) -> Result<Vec<Gen
         Backend::Ollama { .. } => parse_ollama_text(text),
         Backend::OpenAi { .. } => parse_openai_text(text),
         Backend::Tgi { .. } => parse_tgi_text(text),
+        Backend::Gemini { .. } => parse_gemini_text(text),
     }
 }

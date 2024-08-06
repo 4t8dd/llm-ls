@@ -79,6 +79,9 @@ pub enum Backend {
     Tgi {
         url: String,
     },
+    Gemini {
+        url: String,
+    }
 }
 
 impl Default for Backend {
@@ -104,6 +107,7 @@ impl Backend {
             Self::Ollama { url } => url,
             Self::OpenAi { url } => url,
             Self::Tgi { url } => url,
+            Self::Gemini { url } =>url,
         }
     }
 }
