@@ -41,6 +41,8 @@ pub enum Error {
     OpenAI(crate::backend::OpenAIError),
     #[error("gemini error: {0}")]
     Gemini(crate::backend::GeminiError),
+    #[error("claude error: {0}")]
+    Claude(crate::backend::ClaudeError),
     #[error("index out of bounds: {0}")]
     OutOfBoundIndexing(usize),
     #[error("line out of bounds: {0} >= {1}")]

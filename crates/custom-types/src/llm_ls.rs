@@ -81,6 +81,9 @@ pub enum Backend {
     },
     Gemini {
         url: String,
+    },
+    Claude {
+        url: String,
     }
 }
 

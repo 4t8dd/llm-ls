@@ -224,6 +224,70 @@ enum OpenAIAPIResponse {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct ClaudeError {
+    r#type: String,
+    message: String,
+}
+
+impl Display for ClaudeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Claude API Error: {} (error typ {}", self.message, self.r#type)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct ClaudeMessage {
+    message: String,
+    r#type: String,
+}
+#[derive(Debug, Deserialize)]
+pub struct ClaudeResponse {
+    content: Vec<ClaudeMessage>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum  ClaudeAPIResponse {
+    Generation(ClaudeResponse),
+    Error(ClaudeError),
+}
+
+impl From<ClaudeMessage> for Generation {
+    fn from(value: ClaudeMessage) -> Generation {
+        Generation{
+            generated_text: value.message
+        }
+    }
+}
+
+fn build_claude_headers(api_token: Option<&String>, ide: Ide) -> Result<HeaderMap> {
+    let mut headers = HeaderMap::new();
+    let user_agent = format!("{NAME}/{VERSION}; rust/unknown; ide/{ide:?}");
+    headers.insert(USER_AGENT, HeaderValue::from_str(&user_agent)?);
+
+    if let Some(api_token) = api_token {
+        headers.insert(
+            "x-api-key",
+            HeaderValue::from_str(&format!("{api_token}"))?,
+        );
+    }
+
+    Ok(headers)
+}
+
+fn parse_claude_text(text: &str) -> Result<Vec<Generation>> {
+    match serde_json::from_str(text)? {
+        ClaudeAPIResponse::Generation(result) =>{
+            Ok(result.content.into_iter().map(|content| content.into()).collect())
+        }
+        ClaudeAPIResponse::Error(err) =>{
+            Err(Error::Claude(err))
+        }
+    }
+}
+
+
+#[derive(Debug, Deserialize)]
 pub struct GeminiError {
     code: u32,
     message: String,
@@ -332,7 +396,7 @@ pub(crate) fn build_body(
                 request_body.insert("parameters".to_owned(), params);
             }
         }
-        Backend::LlamaCpp { .. } => {
+        Backend::LlamaCpp { .. }| Backend::Claude { url } => {
             request_body.insert("prompt".to_owned(), Value::String(prompt));
         }
         Backend::Gemini { .. } => {
@@ -377,6 +441,7 @@ pub(crate) fn build_headers(
         Backend::OpenAi { .. } => build_openai_headers(api_token, ide),
         Backend::Tgi { .. } => build_tgi_headers(api_token, ide),
         Backend::Gemini { .. } => build_gemini_headers(api_token, ide),
+        Backend::Claude {..} => build_claude_headers(api_token, ide),
     }
 }
 
@@ -388,5 +453,6 @@ pub(crate) fn parse_generations(backend: &Backend, text: &str) -> Result<Vec<Gen
         Backend::OpenAi { .. } => parse_openai_text(text),
         Backend::Tgi { .. } => parse_tgi_text(text),
         Backend::Gemini { .. } => parse_gemini_text(text),
+        Backend::Claude { .. } => parse_claude_text(text),
     }
 }
