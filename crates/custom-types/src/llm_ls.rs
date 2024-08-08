@@ -81,6 +81,9 @@ pub enum Backend {
     },
     Gemini {
         url: String,
+    },
+    Claude {
+        url: String,
     }
 }
 
@@ -107,7 +110,8 @@ impl Backend {
             Self::Ollama { url } => url,
             Self::OpenAi { url } => url,
             Self::Tgi { url } => url,
-            Self::Gemini { url } =>url,
+            Self::Gemini { url } => url,
+            Self::Claude { url } => url,
         }
     }
 }

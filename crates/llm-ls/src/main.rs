@@ -501,6 +501,16 @@ fn build_url(backend: Backend, model: &str, disable_url_path_completion: bool) -
             url.push_str(":generateContent");
             url
         }
+        Backend::Claude { mut url } => {
+            if url.ends_with("/v1/complete") {
+                url
+            } else if url.ends_with("/v1/") {
+                url.push_str("complete")
+            } else if url.ends_with("/v1") {
+                url.push_str("/complete")
+            }
+            url
+        }
     }
 }
 
